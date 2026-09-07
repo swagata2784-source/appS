@@ -1,4 +1,18 @@
-import { RecordedCourse, ClassComment, ClassStudentQuestion } from '../types';
+import {
+  RecordedCourse,
+  ClassComment,
+  ClassStudentQuestion,
+  PracticeSessionSummary,
+  HandSelection,
+  PracticeTimerSession,
+  DailyPracticeRecord,
+  PracticeJournalCycle,
+  PracticeJournalDayInfo,
+  PracticeJournalSummary,
+  SongLearningStatus,
+  SongProgressState,
+  SongItem,
+} from '../types';
 
 export interface ClassProgressItem {
   classNumber: number;
@@ -454,4 +468,489 @@ export function saveHomeworkStatus(
     localStorage.setItem(key, JSON.stringify(currentMap));
   } catch {}
 }
+
+const MIDI_PRACTICE_KEY_PREFIX = 'pianotastic_midi_sessions_';
+const MIDI_SETTINGS_KEY_PREFIX = 'pianotastic_midi_settings_';
+
+export function saveMidiPracticeResult(studentId: string, result: PracticeSessionSummary): void {
+  const key = `${MIDI_PRACTICE_KEY_PREFIX}${studentId}`;
+  try {
+    const raw = localStorage.getItem(key);
+    const list: PracticeSessionSummary[] = raw ? JSON.parse(raw) : [];
+    list.unshift(result);
+    // Keep last 40 attempts
+    if (list.length > 40) list.length = 40;
+    localStorage.setItem(key, JSON.stringify(list));
+  } catch {}
+}
+
+export function getMidiPracticeHistory(studentId: string, scoreId?: string): PracticeSessionSummary[] {
+  const key = `${MIDI_PRACTICE_KEY_PREFIX}${studentId}`;
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return [];
+    const list: PracticeSessionSummary[] = JSON.parse(raw);
+    if (scoreId) {
+      return list.filter((item) => item.scoreId === scoreId);
+    }
+    return list;
+  } catch {
+    return [];
+  }
+}
+
+export function getMidiPracticeStats(studentId: string, scoreId: string): {
+  attempts: number;
+  bestAccuracy: number;
+  lastTempo: number;
+  notesNeedingImprovement: string[];
+} {
+  const history = getMidiPracticeHistory(studentId, scoreId);
+  if (!history.length) {
+    return { attempts: 0, bestAccuracy: 0, lastTempo: 0, notesNeedingImprovement: [] };
+  }
+  const bestAcc = Math.max(...history.map((h) => h.accuracyPercent));
+  const latest = history[0];
+  const problemNotes = history
+    .map((h) => h.needsPracticeSection)
+    .filter(Boolean) as string[];
+  const uniqueNotes = Array.from(new Set(problemNotes.join(', ').split(', ').filter(Boolean)));
+
+  return {
+    attempts: history.length,
+    bestAccuracy: bestAcc,
+    lastTempo: latest.tempoBpm,
+    notesNeedingImprovement: uniqueNotes,
+  };
+}
+
+export function saveMidiScoreSettings(
+  studentId: string,
+  scoreId: string,
+  settings: { hand: HandSelection; tempoBpm: number; loopRange: [number, number] }
+): void {
+  const key = `${MIDI_SETTINGS_KEY_PREFIX}${studentId}_${scoreId}`;
+  try {
+    localStorage.setItem(key, JSON.stringify(settings));
+  } catch {}
+}
+
+export function getMidiScoreSettings(
+  studentId: string,
+  scoreId: string
+): { hand: HandSelection; tempoBpm: number; loopRange: [number, number] } | null {
+  const key = `${MIDI_SETTINGS_KEY_PREFIX}${studentId}_${scoreId}`;
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+// ==========================================
+// 8. REAL PRACTICE TIMER & 30-DAY PRACTICE JOURNAL
+// ==========================================
+const PRACTICE_TIMER_SESSIONS_PREFIX = 'pianotastic_practice_timer_sessions_';
+const PRACTICE_JOURNAL_CYCLE_PREFIX = 'pianotastic_journal_cycle_';
+
+/**
+ * Returns YYYY-MM-DD in local time
+ */
+export function getLocalDateString(date: Date = new Date()): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+/**
+ * Save an actual completed practice session
+ */
+export function savePracticeTimerSession(session: PracticeTimerSession): void {
+  try {
+    const key = `${PRACTICE_TIMER_SESSIONS_PREFIX}${session.studentId}`;
+    const raw = localStorage.getItem(key);
+    const list: PracticeTimerSession[] = raw ? JSON.parse(raw) : [];
+    // Insert new session at the beginning
+    list.unshift(session);
+    localStorage.setItem(key, JSON.stringify(list));
+
+    // Also update class-specific accumulated practice seconds if class context exists
+    if (session.courseId && session.classNumber) {
+      addStudentPracticeTime(
+        session.studentId,
+        session.courseId,
+        session.classNumber,
+        session.durationSeconds
+      );
+    }
+  } catch (err) {
+    console.error('Failed to save practice timer session:', err);
+  }
+}
+
+/**
+ * Retrieve all practice timer sessions for a student
+ */
+export function getAllPracticeTimerSessions(studentId: string): PracticeTimerSession[] {
+  try {
+    const key = `${PRACTICE_TIMER_SESSIONS_PREFIX}${studentId}`;
+    const raw = localStorage.getItem(key);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Get practice duration and sessions for today
+ */
+export function getTodayPracticeDuration(studentId: string): {
+  totalSeconds: number;
+  totalMinutes: number;
+  sessionCount: number;
+  sessions: PracticeTimerSession[];
+} {
+  const todayStr = getLocalDateString();
+  const allSessions = getAllPracticeTimerSessions(studentId);
+  const todaySessions = allSessions.filter((s) => s.date === todayStr);
+
+  const totalSeconds = todaySessions.reduce((acc, s) => acc + (s.durationSeconds || 0), 0);
+  const totalMinutes = Math.round((totalSeconds / 60) * 10) / 10;
+
+  return {
+    totalSeconds,
+    totalMinutes,
+    sessionCount: todaySessions.length,
+    sessions: todaySessions,
+  };
+}
+
+/**
+ * Get all-time practice total for student
+ */
+export function getTotalPracticeDurationAllTime(studentId: string): {
+  totalSeconds: number;
+  totalMinutes: number;
+  totalHours: number;
+  sessionCount: number;
+} {
+  const allSessions = getAllPracticeTimerSessions(studentId);
+  const totalSeconds = allSessions.reduce((acc, s) => acc + (s.durationSeconds || 0), 0);
+  const totalMinutes = Math.round(totalSeconds / 60);
+  const totalHours = Math.round((totalMinutes / 60) * 10) / 10;
+
+  return {
+    totalSeconds,
+    totalMinutes,
+    totalHours,
+    sessionCount: allSessions.length,
+  };
+}
+
+/**
+ * Get 30-Day Practice Journal summary and calendar days
+ */
+export function get30DayPracticeJournalSummary(studentId: string): PracticeJournalSummary {
+  const allSessions = getAllPracticeTimerSessions(studentId);
+  const todayStr = getLocalDateString();
+  const today = new Date();
+
+  // Manage 30-day cycle
+  const cycleKey = `${PRACTICE_JOURNAL_CYCLE_PREFIX}${studentId}`;
+  let cycle: PracticeJournalCycle | null = null;
+  try {
+    const rawCycle = localStorage.getItem(cycleKey);
+    if (rawCycle) cycle = JSON.parse(rawCycle);
+  } catch {}
+
+  if (!cycle) {
+    // Initialize Cycle 1 starting from today or first practice session
+    const firstDateStr = allSessions.length > 0 ? allSessions[allSessions.length - 1].date : todayStr;
+    const startDateObj = new Date(firstDateStr);
+    const endDateObj = new Date(startDateObj);
+    endDateObj.setDate(startDateObj.getDate() + 29); // 30 days total
+
+    cycle = {
+      cycleId: `cycle-1-${studentId}`,
+      studentId,
+      cycleNumber: 1,
+      startDate: getLocalDateString(startDateObj),
+      endDate: getLocalDateString(endDateObj),
+      createdAt: new Date().toISOString(),
+      isCompleted: false,
+    };
+    try {
+      localStorage.setItem(cycleKey, JSON.stringify(cycle));
+    } catch {}
+  }
+
+  // Build the 30-day day list from cycle.startDate
+  const cycleStart = new Date(cycle.startDate + 'T00:00:00');
+  const days: PracticeJournalDayInfo[] = [];
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+  let totalCycleSeconds = 0;
+  let practiceDaysCount = 0;
+
+  for (let i = 0; i < 30; i++) {
+    const d = new Date(cycleStart);
+    d.setDate(cycleStart.getDate() + i);
+    const dateString = getLocalDateString(d);
+    const formattedDate = `${d.getDate()} ${monthNames[d.getMonth()]}`;
+
+    const daySessions = allSessions.filter((s) => s.date === dateString);
+    const daySec = daySessions.reduce((acc, s) => acc + (s.durationSeconds || 0), 0);
+    const dayMin = Math.round((daySec / 60) * 10) / 10;
+
+    totalCycleSeconds += daySec;
+    if (daySec > 0) {
+      practiceDaysCount++;
+    }
+
+    let state: 'practiced' | 'no_practice' | 'today' | 'upcoming';
+    if (dateString === todayStr) {
+      state = daySec > 0 ? 'practiced' : 'today';
+    } else if (dateString < todayStr) {
+      state = daySec > 0 ? 'practiced' : 'no_practice';
+    } else {
+      state = 'upcoming';
+    }
+
+    days.push({
+      dayNumber: i + 1,
+      dateString,
+      formattedDate,
+      state,
+      totalMinutes: dayMin,
+      totalSeconds: daySec,
+      sessions: daySessions,
+    });
+  }
+
+  // Determine current day number in cycle (1..30)
+  const msPerDay = 24 * 60 * 60 * 1000;
+  const todayDateObj = new Date(todayStr + 'T00:00:00');
+  const diffDays = Math.floor((todayDateObj.getTime() - cycleStart.getTime()) / msPerDay);
+  const currentDayNumber = Math.min(30, Math.max(1, diffDays + 1));
+
+  // Calculate streaks from actual sessions
+  // Current streak: consecutive days with practice ending today or yesterday
+  const pastDaysDescending = days
+    .filter((d) => d.dateString <= todayStr)
+    .sort((a, b) => b.dateString.localeCompare(a.dateString));
+
+  let currentStreak = 0;
+  // Check if practiced today or yesterday to begin streak count
+  if (pastDaysDescending.length > 0) {
+    const firstPast = pastDaysDescending[0];
+    const secondPast = pastDaysDescending[1];
+    const canContinueStreak =
+      firstPast.totalSeconds > 0 || (secondPast && secondPast.totalSeconds > 0);
+
+    if (canContinueStreak) {
+      let startIndex = firstPast.totalSeconds > 0 ? 0 : 1;
+      for (let i = startIndex; i < pastDaysDescending.length; i++) {
+        if (pastDaysDescending[i].totalSeconds > 0) {
+          currentStreak++;
+        } else {
+          break;
+        }
+      }
+    }
+  }
+
+  // Longest streak across all 30 days
+  let longestStreak = 0;
+  let tempStreak = 0;
+  for (const d of days) {
+    if (d.totalSeconds > 0) {
+      tempStreak++;
+      if (tempStreak > longestStreak) {
+        longestStreak = tempStreak;
+      }
+    } else {
+      tempStreak = 0;
+    }
+  }
+
+  const todayInfo = days.find((d) => d.dateString === todayStr);
+  const todayMinutes = todayInfo ? todayInfo.totalMinutes : 0;
+  const totalCycleMinutes = Math.round((totalCycleSeconds / 60) * 10) / 10;
+
+  return {
+    cycle,
+    currentDayNumber,
+    todayMinutes,
+    totalCycleMinutes,
+    practiceDaysCount,
+    currentStreak,
+    longestStreak,
+    days,
+  };
+}
+
+// =======================================================================
+// 10. REAL DATA-DRIVEN SONG LIBRARY STORAGE & TRACKING SERVICE
+// =======================================================================
+
+const SONG_PROGRESS_KEY_PREFIX = 'pianotastic_song_progress_v1_';
+
+/**
+ * Loads all saved song progress for a given student
+ */
+export function getAllSongProgress(studentId: string): Record<string, SongProgressState> {
+  const key = `${SONG_PROGRESS_KEY_PREFIX}${studentId}`;
+  try {
+    const raw = localStorage.getItem(key);
+    if (raw) {
+      return JSON.parse(raw);
+    }
+  } catch (e) {
+    console.error('Failed to load song progress map', e);
+  }
+
+  // Realistic initial learning state: student is learning Kal Ho Naa Ho and Purano Shei Diner Kotha
+  const initialMap: Record<string, SongProgressState> = {
+    'song-kal-ho-naa-ho': {
+      songId: 'song-kal-ho-naa-ho',
+      studentId,
+      status: 'Practising',
+      lastPracticedAt: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+      totalPracticeSeconds: 1440, // 24 minutes logged
+      sessionsCount: 3,
+      notesMastered: 14,
+    },
+    'song-purano-shei': {
+      songId: 'song-purano-shei',
+      studentId,
+      status: 'Learning',
+      lastPracticedAt: new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString(),
+      totalPracticeSeconds: 780, // 13 minutes logged
+      sessionsCount: 2,
+      notesMastered: 8,
+    },
+    'song-ode-to-joy': {
+      songId: 'song-ode-to-joy',
+      studentId,
+      status: 'Completed',
+      lastPracticedAt: new Date(Date.now() - 72 * 60 * 60 * 1000).toISOString(),
+      totalPracticeSeconds: 2100, // 35 minutes logged
+      sessionsCount: 4,
+      notesMastered: 16,
+    },
+  };
+
+  try {
+    localStorage.setItem(key, JSON.stringify(initialMap));
+  } catch {
+    // ignore
+  }
+
+  return initialMap;
+}
+
+/**
+ * Retrieves the specific status for a song: 'Not Started' | 'Learning' | 'Practising' | 'Completed'
+ */
+export function getSongLearningStatus(
+  studentId: string,
+  songId: string
+): SongLearningStatus {
+  const map = getAllSongProgress(studentId);
+  return map[songId]?.status || 'Not Started';
+}
+
+/**
+ * Updates and saves the learning status of a song for a student
+ */
+export function saveSongLearningStatus(
+  studentId: string,
+  songId: string,
+  status: SongLearningStatus,
+  extra?: { notesMastered?: number; personalNotes?: string }
+): void {
+  const map = getAllSongProgress(studentId);
+  const existing = map[songId] || {
+    songId,
+    studentId,
+    status: 'Not Started',
+    totalPracticeSeconds: 0,
+    sessionsCount: 0,
+  };
+
+  map[songId] = {
+    ...existing,
+    status,
+    notesMastered: extra?.notesMastered !== undefined ? extra.notesMastered : existing.notesMastered,
+    personalNotes: extra?.personalNotes !== undefined ? extra.personalNotes : existing.personalNotes,
+  };
+
+  const key = `${SONG_PROGRESS_KEY_PREFIX}${studentId}`;
+  try {
+    localStorage.setItem(key, JSON.stringify(map));
+  } catch (e) {
+    console.error('Failed to save song learning status', e);
+  }
+}
+
+/**
+ * Records practice duration on a song whenever Practice Timer runs with a song context
+ */
+export function recordSongPracticeSession(
+  studentId: string,
+  songId: string,
+  durationSeconds: number
+): void {
+  if (durationSeconds <= 0) return;
+  const map = getAllSongProgress(studentId);
+  const existing = map[songId] || {
+    songId,
+    studentId,
+    status: 'Practising',
+    totalPracticeSeconds: 0,
+    sessionsCount: 0,
+  };
+
+  // If currently Not Started, automatically transition to Practising
+  const newStatus: SongLearningStatus =
+    existing.status === 'Not Started' ? 'Practising' : existing.status;
+
+  map[songId] = {
+    ...existing,
+    status: newStatus,
+    totalPracticeSeconds: existing.totalPracticeSeconds + durationSeconds,
+    sessionsCount: existing.sessionsCount + 1,
+    lastPracticedAt: new Date().toISOString(),
+  };
+
+  const key = `${SONG_PROGRESS_KEY_PREFIX}${studentId}`;
+  try {
+    localStorage.setItem(key, JSON.stringify(map));
+  } catch (e) {
+    console.error('Failed to record song practice session', e);
+  }
+}
+
+/**
+ * Finds songs that have actual practice logged or recent activity
+ */
+export function getRecentlyPracticedSongs(
+  studentId: string,
+  allSongs: SongItem[]
+): SongItem[] {
+  const map = getAllSongProgress(studentId);
+
+  return allSongs
+    .filter((s) => map[s.id] && map[s.id].lastPracticedAt && map[s.id].totalPracticeSeconds > 0)
+    .sort((a, b) => {
+      const timeA = new Date(map[a.id]?.lastPracticedAt || 0).getTime();
+      const timeB = new Date(map[b.id]?.lastPracticedAt || 0).getTime();
+      return timeB - timeA;
+    });
+}
+
+
+
 

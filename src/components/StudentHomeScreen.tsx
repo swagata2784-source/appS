@@ -24,6 +24,9 @@ import {
 import { Language, Theme, StudentAccount, RecordedCourse } from '../types';
 import { Logo } from './Logo';
 import { LearnHomeScreen } from './LearnHomeScreen';
+import { SongLibraryScreen } from './SongLibraryScreen';
+import { PracticeTimerModal } from './PracticeTimerModal';
+import { PracticeJournalModal } from './PracticeJournalModal';
 
 interface StudentHomeScreenProps {
   student: StudentAccount;
@@ -37,6 +40,7 @@ interface StudentHomeScreenProps {
   onRequireLogin?: () => void;
   onSelectCourse?: (course: RecordedCourse) => void;
   onOpenClass?: (classNumber: number) => void;
+  onOpenSongLibrary?: () => void;
 }
 
 export const StudentHomeScreen: React.FC<StudentHomeScreenProps> = ({
@@ -51,11 +55,13 @@ export const StudentHomeScreen: React.FC<StudentHomeScreenProps> = ({
   onRequireLogin,
   onSelectCourse,
   onOpenClass,
+  onOpenSongLibrary,
 }) => {
   const isDark = theme === 'dark';
 
   // Navigation tab in student portal
   const [activeTab, setActiveTab] = useState<'home' | 'learn' | 'practice' | 'profile'>(initialTab);
+  const [showSongLibrary, setShowSongLibrary] = useState(false);
 
   // Practice state
   const [practiceMinutes, setPracticeMinutes] = useState(15);
@@ -67,6 +73,10 @@ export const StudentHomeScreen: React.FC<StudentHomeScreenProps> = ({
 
   // Full curriculum view modal
   const [showAllClassesModal, setShowAllClassesModal] = useState(false);
+
+  // Practice Timer & Journal modals
+  const [showTimerModal, setShowTimerModal] = useState(false);
+  const [showJournalModal, setShowJournalModal] = useState(false);
 
   // Metronome state for practice hub
   const [bpm, setBpm] = useState(80);
@@ -179,6 +189,20 @@ export const StudentHomeScreen: React.FC<StudentHomeScreenProps> = ({
     },
   ];
 
+  if (showSongLibrary) {
+    return (
+      <SongLibraryScreen
+        student={student}
+        course={course}
+        onBack={() => setShowSongLibrary(false)}
+        lang={lang}
+        theme={theme}
+        onToggleTheme={onToggleTheme}
+        onToggleLang={onToggleLang}
+      />
+    );
+  }
+
   return (
     <div
       id="student-home-screen"
@@ -199,8 +223,23 @@ export const StudentHomeScreen: React.FC<StudentHomeScreenProps> = ({
         </div>
 
         {/* Student ID & Profile Action */}
-        <div className="flex items-center gap-3">
-          <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full border border-[#C5A869]/40 bg-[#C5A869]/10 text-xs font-mono font-bold text-[#C5A869]">
+        <div className="flex items-center gap-2.5 sm:gap-3">
+          <button
+            onClick={() => {
+              if (onOpenSongLibrary) {
+                onOpenSongLibrary();
+              } else {
+                setShowSongLibrary(true);
+              }
+            }}
+            className="px-3 py-1.5 rounded-full border border-[#C5A869]/50 bg-[#C5A869]/15 text-xs font-bold text-[#C5A869] hover:bg-[#C5A869]/25 transition-colors cursor-pointer flex items-center gap-1.5 shadow-2xs"
+            title="Open Song Library Repertoire"
+          >
+            <Music className="w-3.5 h-3.5" />
+            <span className="hidden xs:inline">{lang === 'en' ? 'Song Library' : 'Song Library'}</span>
+          </button>
+
+          <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full border border-[#C5A869]/40 bg-[#C5A869]/10 text-xs font-mono font-bold text-[#C5A869]">
             <span>ID:</span>
             <span>{student.studentId}</span>
           </div>
@@ -510,17 +549,23 @@ export const StudentHomeScreen: React.FC<StudentHomeScreenProps> = ({
                       )}
                     </button>
 
-                    {practiceTimerSeconds > 0 && (
+                    <div className="grid grid-cols-2 gap-2 pt-1">
                       <button
-                        onClick={() => {
-                          setIsPracticing(false);
-                          setPracticeTimerSeconds(0);
-                        }}
-                        className="w-full py-2 text-xs font-semibold opacity-60 hover:opacity-100 transition-opacity cursor-pointer text-center"
+                        onClick={() => setShowTimerModal(true)}
+                        className="py-2.5 px-3 rounded-xl border border-[#C5A869]/40 bg-[#C5A869]/10 text-xs font-bold text-[#C5A869] flex items-center justify-center gap-1.5 hover:bg-[#C5A869]/20 cursor-pointer transition-colors"
                       >
-                        Reset Timer
+                        <Clock className="w-3.5 h-3.5" />
+                        <span>{lang === 'en' ? 'Stopwatch Timer' : 'Stopwatch'}</span>
                       </button>
-                    )}
+
+                      <button
+                        onClick={() => setShowJournalModal(true)}
+                        className="py-2.5 px-3 rounded-xl border border-black/10 dark:border-white/10 text-xs font-bold flex items-center justify-center gap-1.5 hover:border-[#C5A869] cursor-pointer transition-colors"
+                      >
+                        <Calendar className="w-3.5 h-3.5 text-[#C5A869]" />
+                        <span>{lang === 'en' ? '30-Day Journal' : 'Journal'}</span>
+                      </button>
+                    </div>
                   </div>
                 </div>
 
@@ -588,6 +633,13 @@ export const StudentHomeScreen: React.FC<StudentHomeScreenProps> = ({
               }
             }}
             onRequireLogin={onRequireLogin}
+            onOpenSongLibrary={() => {
+              if (onOpenSongLibrary) {
+                onOpenSongLibrary();
+              } else {
+                setShowSongLibrary(true);
+              }
+            }}
             lang={lang}
             theme={theme}
           />
@@ -880,6 +932,15 @@ export const StudentHomeScreen: React.FC<StudentHomeScreenProps> = ({
         </button>
 
         <button
+          id="nav-tab-songs"
+          onClick={() => setShowSongLibrary(true)}
+          className="flex flex-col items-center gap-1 text-xs font-semibold transition-colors cursor-pointer opacity-60 hover:opacity-100 hover:text-[#C5A869]"
+        >
+          <Music className="w-5 h-5 text-[#C5A869]" />
+          <span>{lang === 'en' ? 'Songs' : 'Songs'}</span>
+        </button>
+
+        <button
           id="nav-tab-practice"
           onClick={() => setActiveTab('practice')}
           className={`flex flex-col items-center gap-1 text-xs font-semibold transition-colors cursor-pointer ${
@@ -901,6 +962,32 @@ export const StudentHomeScreen: React.FC<StudentHomeScreenProps> = ({
           <span>{lang === 'en' ? 'Profile' : 'Profile'}</span>
         </button>
       </nav>
+
+      {/* PRACTICE TIMER MODAL */}
+      {showTimerModal && (
+        <PracticeTimerModal
+          isOpen={showTimerModal}
+          studentId={student.studentId}
+          courseId={course.id}
+          initialContextTitle={course.title}
+          onClose={() => setShowTimerModal(false)}
+          onOpenJournal={() => setShowJournalModal(true)}
+          lang={lang}
+          theme={theme}
+        />
+      )}
+
+      {/* 30-DAY PRACTICE JOURNAL MODAL */}
+      {showJournalModal && (
+        <PracticeJournalModal
+          isOpen={showJournalModal}
+          studentId={student.studentId}
+          onClose={() => setShowJournalModal(false)}
+          onStartPractice={() => setShowTimerModal(true)}
+          lang={lang}
+          theme={theme}
+        />
+      )}
     </div>
   );
 };

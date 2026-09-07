@@ -1,6 +1,6 @@
 {
   "name": "Pianotastic Academy",
-  "description": "Official mobile-first app for Pianotastic Academy: Public Home, Recorded Courses Catalogue, Enrollment, Secure Payment, Student Authentication, Student Home, Learn Home, and Individual Recorded Class with 5 learning support sections.",
+  "description": "Official mobile-first app for Pianotastic Academy: Visitor Journey (Splash, Goal Selection, Founder Welcome, Free Learning, Explore/Courses), Recorded Courses Catalogue, Enrollment, Secure Payment, Student Authentication, Student Home, Learn Home, and Individual Recorded Class.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

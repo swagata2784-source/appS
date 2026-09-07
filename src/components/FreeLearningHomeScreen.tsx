@@ -5,12 +5,14 @@ import { CategoryId, Language, Theme } from '../types';
 
 interface FreeLearningHomeScreenProps {
   onSelectCategory: (categoryId: CategoryId) => void;
+  onExploreCourses?: () => void;
   lang: Language;
   theme: Theme;
 }
 
 export const FreeLearningHomeScreen: React.FC<FreeLearningHomeScreenProps> = ({
   onSelectCategory,
+  onExploreCourses,
   lang,
   theme,
 }) => {
@@ -168,6 +170,49 @@ export const FreeLearningHomeScreen: React.FC<FreeLearningHomeScreenProps> = ({
             </div>
           );
         })}
+      </div>
+
+      {/* Step 5 in Visitor Journey: Explore / Courses */}
+      <div
+        id="free-learning-explore-courses"
+        className={`p-6 sm:p-8 rounded-3xl border transition-all mb-8 flex flex-col sm:flex-row items-center justify-between gap-5 ${
+          isDark
+            ? 'bg-[#081F5C]/40 border-[#0E2E80]'
+            : 'bg-white border-[#081F5C]/15 shadow-xs'
+        }`}
+      >
+        <div className="space-y-1 text-center sm:text-left">
+          <span className="text-[11px] sm:text-xs uppercase tracking-widest font-semibold text-[#C5A869]">
+            {lang === 'en' ? 'Step 5 • Full Academy' : 'Agla Kadam • Full Academy'}
+          </span>
+          <h3 className="font-display text-lg sm:text-xl font-bold tracking-tight">
+            {lang === 'en' ? 'Explore Academy Courses' : 'Academy Courses Explore Karein'}
+          </h3>
+          <p
+            className={`text-xs sm:text-sm max-w-lg ${
+              isDark ? 'text-[#D8CFBC]' : 'text-[#47587E]'
+            }`}
+          >
+            {lang === 'en'
+              ? 'Discover our full curriculum across Western Classical (Beginner, Intermediate, Advanced) and Indian Music (Bollywood, Rabindra Sangeet, Bengali Modern).'
+              : 'Western Classical aur Indian Music ke sabhi structured courses explore karein.'}
+          </p>
+        </div>
+
+        {onExploreCourses && (
+          <button
+            id="free-learning-to-courses-btn"
+            onClick={onExploreCourses}
+            className="w-full sm:w-auto px-6 py-3 rounded-full text-xs sm:text-sm font-bold tracking-wide flex items-center justify-center gap-2 flex-shrink-0 cursor-pointer shadow-md transition-transform hover:scale-[1.02] active:scale-[0.98]"
+            style={{
+              backgroundColor: isDark ? '#F7F2EB' : '#081F5C',
+              color: isDark ? '#081F5C' : '#F7F2EB',
+            }}
+          >
+            <span>{lang === 'en' ? 'Explore All Courses' : 'Sabhi Courses Dekhein'}</span>
+            <ArrowRight className="w-4 h-4" />
+          </button>
+        )}
       </div>
 
       {/* Bento reassurance notice */}

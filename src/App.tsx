@@ -25,6 +25,7 @@ import { ForgotPasswordScreen } from './components/ForgotPasswordScreen';
 import { CreatePasswordScreen } from './components/CreatePasswordScreen';
 import { StudentHomeScreen } from './components/StudentHomeScreen';
 import { IndividualRecordedClassScreen } from './components/IndividualRecordedClassScreen';
+import { SongLibraryScreen } from './components/SongLibraryScreen';
 import { BooksModal } from './components/BooksModal';
 import { ContactModal } from './components/ContactModal';
 import { StructuredCoursesModal } from './components/StructuredCoursesModal';
@@ -33,7 +34,13 @@ export default function App() {
   const [screen, setScreen] = useState<Screen>('splash');
   const [lang, setLang] = useState<Language>('en');
   const [theme, setTheme] = useState<Theme>('light');
-  const [selectedGoalIds, setSelectedGoalIds] = useState<string[]>(['zero']);
+  const [selectedGoalId, setSelectedGoalId] = useState<string>(() => {
+    try {
+      return sessionStorage.getItem('pianotastic_visitor_goal') || 'zero';
+    } catch {
+      return 'zero';
+    }
+  });
   const [selectedCategoryId, setSelectedCategoryId] =
     useState<CategoryId>('beginner');
   const [selectedVideo, setSelectedVideo] = useState<VideoLesson | null>(null);
@@ -87,10 +94,13 @@ export default function App() {
     setTheme((prev) => (prev === 'light' ? 'dark' : 'light'));
   };
 
-  const handleToggleGoal = (id: string) => {
-    setSelectedGoalIds((prev) =>
-      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
-    );
+  const handleSelectGoal = (id: string) => {
+    setSelectedGoalId(id);
+    try {
+      sessionStorage.setItem('pianotastic_visitor_goal', id);
+    } catch {
+      // safe fallback
+    }
   };
 
   const handleSelectCategory = (categoryId: CategoryId) => {
@@ -178,6 +188,8 @@ export default function App() {
         return lang === 'en' ? 'Create Password' : 'Password Banayein';
       case 'student-home':
         return lang === 'en' ? 'Student Portal' : 'Student Portal';
+      case 'song-library':
+        return lang === 'en' ? 'Song Library' : 'Song Library';
       default:
         return undefined;
     }
@@ -187,13 +199,13 @@ export default function App() {
   const handleBack = () => {
     switch (screen) {
       case 'goals':
-        setScreen('welcome');
+        setScreen('public-home');
         break;
       case 'founder':
         setScreen('goals');
         break;
       case 'free-learning-home':
-        setScreen('public-home');
+        setScreen('founder');
         break;
       case 'category-list':
         setScreen('free-learning-home');
@@ -237,6 +249,9 @@ export default function App() {
       case 'student-home':
         setScreen('public-home');
         break;
+      case 'song-library':
+        setScreen('student-home');
+        break;
       default:
         setScreen('public-home');
         break;
@@ -254,7 +269,7 @@ export default function App() {
       {/* Splash Screen Overlay with smooth fade out */}
       <AnimatePresence>
         {screen === 'splash' && (
-          <SplashScreen onFinish={() => setScreen('public-home')} />
+          <SplashScreen onFinish={() => setScreen('goals')} />
         )}
       </AnimatePresence>
 
@@ -273,14 +288,14 @@ export default function App() {
             onNavigateScreen={(s) => setScreen(s)}
             onOpenBooks={() => setBooksModalOpen(true)}
             onOpenContact={() => setContactModalOpen(true)}
-            showBack={screen !== 'public-home' && screen !== 'welcome'}
+            showBack={screen !== 'public-home' && screen !== 'welcome' && screen !== 'goals'}
             onBack={handleBack}
             lang={lang}
             onToggleLang={toggleLanguage}
             theme={theme}
             onToggleTheme={toggleTheme}
             title={getScreenTitle()}
-            showLogo={screen === 'public-home' || screen === 'welcome'}
+            showLogo={screen === 'public-home' || screen === 'welcome' || screen === 'goals'}
             onLogoClick={() => setScreen('public-home')}
           />
         )}
@@ -504,10 +519,33 @@ export default function App() {
               setCurrentClassNumber(cNum);
               setScreen('individual-recorded-class');
             }}
+            onOpenSongLibrary={() => setScreen('song-library')}
             onToggleTheme={toggleTheme}
             onToggleLang={toggleLanguage}
             lang={lang}
             theme={theme}
+          />
+        )}
+
+        {/* PROMPT: Song Library Repertoire Hub */}
+        {screen === 'song-library' && (
+          <SongLibraryScreen
+            student={
+              studentAccount || {
+                studentId: 'PA-2026-0482',
+                fullName: 'Rahul Sharma',
+                email: 'student@pianotastic.com',
+                phone: '+91 98765 43210',
+                hasCustomPassword: true,
+                enrolledCourseId: selectedCourse?.id || 'western-beginner',
+              }
+            }
+            course={selectedCourse || RECORDED_COURSES[0]}
+            onBack={() => setScreen('student-home')}
+            lang={lang}
+            theme={theme}
+            onToggleTheme={toggleTheme}
+            onToggleLang={toggleLanguage}
           />
         )}
 
@@ -547,10 +585,10 @@ export default function App() {
         {/* PROMPT 2: Goal Selection Screen */}
         {screen === 'goals' && (
           <GoalSelectionScreen
-            selectedGoalIds={selectedGoalIds}
-            onToggleGoal={handleToggleGoal}
+            selectedGoalId={selectedGoalId}
+            onSelectGoal={handleSelectGoal}
             onContinue={() => setScreen('founder')}
-            onBack={() => setScreen('welcome')}
+            onBack={() => setScreen('public-home')}
             lang={lang}
             theme={theme}
           />
@@ -560,7 +598,7 @@ export default function App() {
         {screen === 'founder' && (
           <FounderWelcomeScreen
             onContinue={() => setScreen('free-learning-home')}
-            onBack={() => setScreen('public-home')}
+            onBack={() => setScreen('goals')}
             lang={lang}
             theme={theme}
           />
@@ -570,6 +608,7 @@ export default function App() {
         {screen === 'free-learning-home' && (
           <FreeLearningHomeScreen
             onSelectCategory={handleSelectCategory}
+            onExploreCourses={() => setScreen('courses-home')}
             lang={lang}
             theme={theme}
           />

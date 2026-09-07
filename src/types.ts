@@ -21,7 +21,10 @@ export type Screen =
   | 'student-home'
   | 'individual-recorded-class'
   | 'interactive-sheet-music'
-  | 'practice-journal';
+  | 'practice-journal'
+  | 'song-library'
+  | 'chords'
+  | 'scales';
 
 export type Language = 'en' | 'hi';
 
@@ -488,6 +491,190 @@ export interface PracticeJournalSummary {
   longestStreak: number;
   days: PracticeJournalDayInfo[];
 }
+
+// ==========================================
+// 10. REAL DATA-DRIVEN SONG LIBRARY TYPES
+// ==========================================
+
+export type SongLevel =
+  | 'Bollywood'
+  | 'Bengali'
+  | 'Rabindra Sangeet'
+  | 'Western Classical';
+
+export type SongDifficulty = 'Easy' | 'Medium' | 'Advanced';
+
+export type SongLearningStatus =
+  | 'Not Started'
+  | 'Learning'
+  | 'Practising'
+  | 'Completed';
+
+export interface SongAudioMelodyNote {
+  pitch: string; // e.g. "C4", "E4", "G4"
+  midiNumber: number; // 60, 64, 67
+  durationSeconds: number; // e.g. 0.5, 1.0
+  beatOffset?: number;
+}
+
+export interface SongItem {
+  id: string;
+  title: string;
+  titleHi?: string;
+  artistOrComposer: string;
+  genre: string;
+  level: SongLevel;
+  difficulty: SongDifficulty;
+  keySignature: string;
+  timeSignature: string;
+  tempoBpm: number;
+  descriptionEn: string;
+  descriptionHi: string;
+  learningNotesEn: string[];
+  learningNotesHi: string[];
+  handArrangement: 'Right Hand Melody' | 'Left Hand Bass' | 'Both Hands';
+  hasSheetMusic: boolean;
+  hasInteractivePractice: boolean;
+  hasMidiPractice: boolean;
+  sheetMusicItem?: SheetMusicItem;
+  interactiveScore?: InteractiveScore;
+  melodyAudio?: SongAudioMelodyNote[];
+}
+
+export interface SongProgressState {
+  songId: string;
+  studentId: string;
+  status: SongLearningStatus;
+  lastPracticedAt?: string;
+  totalPracticeSeconds: number;
+  sessionsCount: number;
+  notesMastered?: number;
+  personalNotes?: string;
+}
+
+// ==========================================
+// 11. REAL DATA-DRIVEN CHORDS TYPES
+// ==========================================
+
+export type ChordType =
+  | 'Major'
+  | 'Minor'
+  | 'Diminished'
+  | 'Augmented'
+  | '7th'
+  | 'Major 7th'
+  | 'Minor 7th';
+
+export type ChordInversionType = 'root' | 'first' | 'second' | 'third';
+
+export interface ChordNoteInfo {
+  pitch: string; // e.g. "C4", "E4", "G4", "F#4", "Bb3"
+  midiNumber: number; // 60, 64, 67, etc.
+  letter: string; // "C", "E", "G", "F♯", "B♭", etc.
+  accidental?: '♯' | '♭' | '♮';
+  octave: number;
+}
+
+export interface ChordInversionConfig {
+  inversion: ChordInversionType;
+  labelEn: string;
+  labelHi: string;
+  notes: ChordNoteInfo[];
+  fingeringRightHand?: number[]; // e.g. [1, 3, 5] or [1, 2, 5]
+  fingeringLeftHand?: number[]; // e.g. [5, 3, 1] or [5, 2, 1]
+  staffClef: 'treble' | 'bass' | 'both';
+  arpeggioSequenceMidi?: number[];
+}
+
+export interface CourseChordItem {
+  id: string;
+  courseIds: string[]; // which courses teach this chord
+  classNumbers?: number[]; // associated class numbers
+  name: string; // e.g. "C Major", "G Major", "A Minor"
+  nameHi: string;
+  rootNote: string; // "C", "G", "F#", "Bb"
+  chordType: ChordType;
+  shortDescriptionEn: string;
+  shortDescriptionHi: string;
+  defaultClef: 'treble' | 'bass';
+  supportedHands: ('Right Hand' | 'Left Hand' | 'Both Hands')[];
+  inversions: ChordInversionConfig[];
+  timeSignature?: string; // default "4/4"
+  defaultTempoBpm?: number; // default 60
+  hasArpeggioMode?: boolean;
+}
+
+export interface ChordPracticeProgress {
+  chordId: string;
+  studentId: string;
+  lastPracticedAt?: string;
+  attemptsCount: number;
+  successfulMidiCompletions: number;
+  lastSelectedInversion: ChordInversionType;
+  lastSelectedHand: 'Right Hand' | 'Left Hand' | 'Both Hands';
+  lastSelectedMode: 'block' | 'arpeggio';
+  bestResult?: 'Correct' | 'Attempted' | 'Not Practised';
+}
+
+// ==========================================
+// 12. REAL DATA-DRIVEN SCALES TYPES
+// ==========================================
+
+export type ScaleType =
+  | 'Major'
+  | 'Natural Minor'
+  | 'Harmonic Minor'
+  | 'Melodic Minor'
+  | 'Thaat / Modal';
+
+export type ScaleDirection = 'Ascending' | 'Descending' | 'Both';
+
+export interface ScaleNoteInfo {
+  pitch: string; // e.g. "C4", "D4", "E4", "F#4"
+  midiNumber: number;
+  letter: string; // "C", "D", "E", "F♯", etc.
+  octave: number;
+  scaleDegree: number; // 1 to 8 (or 1 to 15 for 2 octaves)
+  fingeringRightHand?: number; // 1 to 5
+  fingeringLeftHand?: number; // 1 to 5
+  accidental?: '♯' | '♭' | '♮';
+}
+
+export interface CourseScaleItem {
+  id: string;
+  courseIds: string[]; // courses this scale is assigned to
+  classNumbers?: number[]; // associated classes
+  name: string; // e.g. "C Major Scale"
+  nameHi: string;
+  keySignatureName: string; // e.g. "C Major (No Sharps/Flats)", "G Major (1 Sharp - F♯)"
+  rootNote: string;
+  scaleType: ScaleType;
+  shortDescriptionEn: string;
+  shortDescriptionHi: string;
+  clef: 'treble' | 'bass' | 'both';
+  octaves: 1 | 2;
+  supportedHands: ('Right Hand' | 'Left Hand' | 'Both Hands')[];
+  defaultTempoBpm: number;
+  timeSignature: string; // "4/4", "3/4"
+  notesAscending: ScaleNoteInfo[];
+  notesDescending: ScaleNoteInfo[];
+  fingeringRuleEn?: string;
+  fingeringRuleHi?: string;
+}
+
+export interface ScalePracticeProgress {
+  scaleId: string;
+  studentId: string;
+  lastPracticedAt?: string;
+  attemptsCount: number;
+  successfulCompletions: number;
+  lastSelectedHand: 'Right Hand' | 'Left Hand' | 'Both Hands';
+  lastSelectedDirection: ScaleDirection;
+  lastSelectedTempo: number;
+  bestTempoBpm?: number;
+  bestMidiAccuracy?: number; // calculated from real MIDI attempts
+}
+
 
 
 

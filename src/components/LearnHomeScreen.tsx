@@ -15,14 +15,17 @@ import {
   Check,
   X,
   Compass,
+  Music2,
 } from 'lucide-react';
 import { Language, Theme, StudentAccount, RecordedCourse } from '../types';
 import { RECORDED_COURSES } from '../data/coursesData';
+import { SONG_LIBRARY_DATA } from '../data/songsData';
 import {
   getStudentCourseProgress,
   recordVideoProgress,
   StudentCourseLearningState,
   ClassProgressItem,
+  getAllSongProgress,
 } from '../utils/studentLearningService';
 import { Logo } from './Logo';
 
@@ -42,6 +45,7 @@ export interface LearnHomeScreenProps {
     savedSeconds?: number;
   }) => void;
   onViewClassLibrary?: (course: RecordedCourse) => void;
+  onOpenSongLibrary?: () => void;
 }
 
 interface ParsedClass {
@@ -61,6 +65,7 @@ export const LearnHomeScreen: React.FC<LearnHomeScreenProps> = ({
   theme,
   onOpenClass,
   onViewClassLibrary,
+  onOpenSongLibrary,
 }) => {
   const isDark = theme === 'dark';
 
@@ -740,6 +745,73 @@ export const LearnHomeScreen: React.FC<LearnHomeScreenProps> = ({
           </div>
         </div>
       )}
+
+      {/* Repertoire & Song Library Card (Student -> Learn -> Song Library) */}
+      <div
+        id="learn-song-library-hub"
+        className={`p-6 sm:p-7 rounded-3xl border shadow-sm transition-all relative overflow-hidden ${
+          isDark
+            ? 'bg-gradient-to-br from-[#081F5C]/60 to-[#040C24] border-[#C5A869]/30'
+            : 'bg-gradient-to-br from-white to-[#F7F2EB] border-[#C5A869]/35'
+        }`}
+      >
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="space-y-2 max-w-xl">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-xl bg-[#C5A869]/20 text-[#C5A869] flex items-center justify-center">
+                <Music2 className="w-4 h-4" />
+              </div>
+              <span className="text-xs uppercase font-bold tracking-wider text-[#C5A869]">
+                {lang === 'en' ? 'Repertoire Library' : 'Song Sangrah'}
+              </span>
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#081F5C]/10 dark:bg-white/10 text-xs">
+                {SONG_LIBRARY_DATA.length} Songs
+              </span>
+            </div>
+
+            <h3 className="font-display text-lg sm:text-xl font-bold">
+              {lang === 'en' ? 'Song Library: Play Real Music' : 'Song Library: Asli Gane Seekhein'}
+            </h3>
+
+            <p className="text-xs opacity-80 leading-relaxed">
+              {lang === 'en'
+                ? 'Apply your technique to curated repertoire across Bollywood, Bengali, Rabindra Sangeet, and Western Classical. Filter by level and difficulty, view engraved sheet music, practice with real MIDI, and track progress.'
+                : 'Bollywood, Bengali, Rabindra Sangeet aur Western Classical ke gano par practice karein. Sheet music, live MIDI practice aur practice timer ke sath.'}
+            </p>
+
+            <div className="flex flex-wrap items-center gap-1.5 pt-1">
+              <span className="text-[10px] px-2.5 py-0.5 rounded-md font-bold uppercase tracking-wider bg-[#C5A869]/15 text-[#C5A869] border border-[#C5A869]/30">
+                Bollywood
+              </span>
+              <span className="text-[10px] px-2.5 py-0.5 rounded-md font-bold uppercase tracking-wider bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30">
+                Bengali
+              </span>
+              <span className="text-[10px] px-2.5 py-0.5 rounded-md font-bold uppercase tracking-wider bg-teal-500/15 text-teal-600 dark:text-teal-400 border border-teal-500/30">
+                Rabindra Sangeet
+              </span>
+              <span className="text-[10px] px-2.5 py-0.5 rounded-md font-bold uppercase tracking-wider bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 border border-indigo-500/30">
+                Western Classical
+              </span>
+            </div>
+          </div>
+
+          <div className="flex-shrink-0 self-start sm:self-center">
+            <button
+              id="btn-open-song-library"
+              onClick={() => {
+                if (onOpenSongLibrary) {
+                  onOpenSongLibrary();
+                }
+              }}
+              className="py-3.5 px-6 rounded-full text-xs sm:text-sm font-bold bg-[#081F5C] text-[#F7F2EB] dark:bg-[#F7F2EB] dark:text-[#081F5C] hover:opacity-90 shadow-md transition-all cursor-pointer flex items-center gap-2"
+            >
+              <Music2 className="w-4 h-4 text-[#C5A869]" />
+              <span>{lang === 'en' ? 'Open Song Library' : 'Song Library Kholein'}</span>
+              <ArrowRight className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      </div>
 
       {/* 8. Sequential Learning Structure: Your Learning Path (Section 8, 9, 10) */}
       <div id="learning-path-section" className="space-y-4 pt-2">

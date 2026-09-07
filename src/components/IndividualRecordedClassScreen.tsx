@@ -35,6 +35,7 @@ import {
   ClassStudentQuestion,
   SheetMusicItem,
   PracticalHomeworkItem,
+  InteractiveScore,
 } from '../types';
 import {
   ClassProgressItem,
@@ -54,8 +55,12 @@ import {
   saveHomeworkStatus,
 } from '../utils/studentLearningService';
 import { getClassLearningContent } from '../data/classLearningContent';
+import { getInteractiveScoreById, getInteractiveScoreForClass } from '../data/interactiveScoresData';
 import { SheetMusicViewerModal } from './SheetMusicViewerModal';
 import { TheoryAssignmentModal } from './TheoryAssignmentModal';
+import { InteractiveSheetMusicModal } from './InteractiveSheetMusicModal';
+import { PracticeTimerModal } from './PracticeTimerModal';
+import { PracticeJournalModal } from './PracticeJournalModal';
 
 interface IndividualRecordedClassScreenProps {
   course: RecordedCourse;
@@ -172,7 +177,10 @@ export const IndividualRecordedClassScreen: React.FC<IndividualRecordedClassScre
 
   // MODALS
   const [activeSheetMusicModal, setActiveSheetMusicModal] = useState<SheetMusicItem | null>(null);
+  const [activeInteractiveScore, setActiveInteractiveScore] = useState<InteractiveScore | null>(null);
   const [showTheoryModal, setShowTheoryModal] = useState<boolean>(false);
+  const [showPracticeTimerModal, setShowPracticeTimerModal] = useState<boolean>(false);
+  const [showPracticeJournalModal, setShowPracticeJournalModal] = useState<boolean>(false);
   const [interactiveNotice, setInteractiveNotice] = useState<boolean>(false);
   const [downloadSuccessNotice, setDownloadSuccessNotice] = useState<boolean>(false);
 
@@ -304,10 +312,7 @@ export const IndividualRecordedClassScreen: React.FC<IndividualRecordedClassScre
     if (customTitle) {
       setPracticeContextTitle(customTitle);
     }
-    setPracticeTimerActive(true);
-    // Smooth scroll down to practice section
-    const el = document.getElementById('section-practice');
-    if (el) el.scrollIntoView({ behavior: 'smooth' });
+    setShowPracticeTimerModal(true);
   };
 
   const handlePausePracticeTimer = () => {
@@ -1008,40 +1013,25 @@ export const IndividualRecordedClassScreen: React.FC<IndividualRecordedClassScre
 
             {/* Timer Action Controls */}
             <div className="flex flex-wrap items-center gap-3 pt-1">
-              {!practiceTimerActive ? (
-                <button
-                  onClick={() => handleStartPracticeTimer()}
-                  className="px-6 py-2.5 rounded-full bg-[#081F5C] text-[#F7F2EB] dark:bg-[#F7F2EB] dark:text-[#081F5C] text-xs font-bold flex items-center gap-2 shadow-md cursor-pointer hover:opacity-90"
-                >
-                  <Play className="w-3.5 h-3.5 fill-current" />
-                  <span>
-                    {practiceSessionSeconds > 0
-                      ? lang === 'en'
-                        ? 'Resume Practice'
-                        : 'Practice Resume'
-                      : lang === 'en'
-                      ? 'Start Practice'
-                      : 'Practice Shuru Karein'}
-                  </span>
-                </button>
-              ) : (
-                <button
-                  onClick={handlePausePracticeTimer}
-                  className="px-6 py-2.5 rounded-full bg-amber-500 text-white text-xs font-bold flex items-center gap-2 shadow-md cursor-pointer"
-                >
-                  <Pause className="w-3.5 h-3.5" />
-                  <span>{lang === 'en' ? 'Pause Practice' : 'Pause Karein'}</span>
-                </button>
-              )}
+              <button
+                onClick={() => handleStartPracticeTimer()}
+                className="px-6 py-2.5 rounded-full bg-[#081F5C] text-[#F7F2EB] dark:bg-[#C5A869] dark:text-[#081F5C] text-xs font-bold flex items-center gap-2 shadow-md cursor-pointer hover:opacity-90 transition-transform active:scale-95"
+              >
+                <Play className="w-3.5 h-3.5 fill-current" />
+                <span>
+                  {lang === 'en' ? 'Launch Practice Timer' : 'Riyaz Stopwatch Kholein'}
+                </span>
+              </button>
 
-              {practiceSessionSeconds > 0 && (
-                <button
-                  onClick={handleStopAndSavePractice}
-                  className="px-5 py-2.5 rounded-full border border-[#081F5C]/25 dark:border-white/25 text-xs font-bold hover:border-red-500 hover:text-red-500 transition-colors cursor-pointer"
-                >
-                  <span>{lang === 'en' ? 'Log & Stop Session' : 'Save aur Rukiye'}</span>
-                </button>
-              )}
+              <button
+                onClick={() => setShowPracticeJournalModal(true)}
+                className="px-4 py-2.5 rounded-full border border-[#C5A869]/40 bg-[#C5A869]/10 text-xs font-bold flex items-center gap-2 hover:bg-[#C5A869]/20 transition-colors cursor-pointer text-[#C5A869]"
+              >
+                <Calendar className="w-3.5 h-3.5" />
+                <span>
+                  {lang === 'en' ? '30-Day Practice Journal' : '30-Day Practice Journal'}
+                </span>
+              </button>
             </div>
           </div>
         </section>
@@ -1140,6 +1130,22 @@ export const IndividualRecordedClassScreen: React.FC<IndividualRecordedClassScre
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2 flex-shrink-0">
+                  {item.hasInteractiveVersion && (
+                    <button
+                      onClick={() => {
+                        const iscore =
+                          getInteractiveScoreById(item.id) ||
+                          getInteractiveScoreForClass(course.id, classNumber);
+                        setActiveInteractiveScore(iscore);
+                      }}
+                      className="px-3.5 py-2 rounded-full bg-[#C5A869]/15 text-[#C5A869] border border-[#C5A869]/40 hover:bg-[#C5A869]/25 text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors"
+                      title={lang === 'en' ? 'Practise with real-time MIDI feedback' : 'Live MIDI feedback ke sath riyaz karein'}
+                    >
+                      <Sparkles className="w-3.5 h-3.5" />
+                      <span>{lang === 'en' ? 'Interactive MIDI Practice' : 'Interactive MIDI Riyaz'}</span>
+                    </button>
+                  )}
+
                   <button
                     onClick={() => setActiveSheetMusicModal(item)}
                     className="px-4 py-2 rounded-full bg-[#081F5C] text-[#F7F2EB] dark:bg-[#F7F2EB] dark:text-[#081F5C] text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-xs hover:opacity-90"
@@ -1422,13 +1428,13 @@ export const IndividualRecordedClassScreen: React.FC<IndividualRecordedClassScre
 
           <button
             onClick={() => {
-              setInteractiveNotice(true);
-              setTimeout(() => setInteractiveNotice(false), 4000);
+              const iscore = getInteractiveScoreForClass(course.id, classNumber);
+              setActiveInteractiveScore(iscore);
             }}
-            className="px-4 py-2 rounded-full border border-[#C5A869] text-[#C5A869] text-xs font-bold hover:bg-[#C5A869]/10 flex items-center gap-1.5 flex-shrink-0 cursor-pointer"
+            className="px-4 py-2 rounded-full bg-[#C5A869] text-[#081F5C] hover:bg-[#d6b772] text-xs font-bold flex items-center gap-1.5 flex-shrink-0 cursor-pointer shadow-sm transition-colors"
           >
-            <span>{lang === 'en' ? 'Open Practice' : 'Open Practice'}</span>
-            <ExternalLink className="w-3 h-3" />
+            <Sparkles className="w-3.5 h-3.5 fill-current" />
+            <span>{lang === 'en' ? 'Open MIDI Practice' : 'MIDI Riyaz Kholein'}</span>
           </button>
         </section>
 
@@ -1464,21 +1470,36 @@ export const IndividualRecordedClassScreen: React.FC<IndividualRecordedClassScre
         )}
 
         {/* 30-DAY PRACTICE JOURNAL LINK */}
-        <section className="p-5 rounded-3xl border border-dashed border-[#081F5C]/20 dark:border-white/20 flex items-center justify-between gap-3 text-xs">
+        <section className="p-5 rounded-3xl border border-dashed border-[#081F5C]/20 dark:border-white/20 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs bg-[#C5A869]/[0.02]">
           <div className="flex items-center gap-2.5">
-            <Calendar className="w-4 h-4 text-[#C5A869]" />
-            <span className="font-semibold">
-              {lang === 'en'
-                ? "Don't forget to record today's session in your 30-Day Practice Journal."
-                : 'Apne 30-Day Practice Journal me aaj ka session record karna na bhoolein.'}
-            </span>
+            <div className="w-8 h-8 rounded-xl bg-[#C5A869]/15 text-[#C5A869] flex items-center justify-center flex-shrink-0">
+              <Calendar className="w-4 h-4" />
+            </div>
+            <div>
+              <span className="font-bold text-sm block">
+                {lang === 'en' ? '30-Day Practice Journal' : '30-Day Practice Journal'}
+              </span>
+              <span className="opacity-75 text-xs">
+                {lang === 'en'
+                  ? "Every practice session you complete with the timer is automatically logged to your calendar."
+                  : 'Aapka practice timer se kiya har riyaz session automatically aapke calendar me judta hai.'}
+              </span>
+            </div>
           </div>
-          <button
-            onClick={() => handleStartPracticeTimer()}
-            className="px-3.5 py-1.5 rounded-full bg-[#081F5C]/5 dark:bg-white/5 border border-[#081F5C]/15 dark:border-white/15 font-bold hover:border-[#C5A869] cursor-pointer"
-          >
-            {lang === 'en' ? 'Log Practice' : 'Log Riyaz'}
-          </button>
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <button
+              onClick={() => setShowPracticeJournalModal(true)}
+              className="flex-1 sm:flex-initial px-4 py-2 rounded-full border border-[#C5A869]/40 bg-[#C5A869]/10 text-[#C5A869] text-xs font-bold hover:bg-[#C5A869]/20 cursor-pointer"
+            >
+              {lang === 'en' ? 'View 30-Day Journal' : 'Journal Kholein'}
+            </button>
+            <button
+              onClick={() => handleStartPracticeTimer()}
+              className="flex-1 sm:flex-initial px-4 py-2 rounded-full bg-[#081F5C] text-[#F7F2EB] dark:bg-[#C5A869] dark:text-[#081F5C] text-xs font-bold shadow-sm cursor-pointer hover:opacity-90"
+            >
+              {lang === 'en' ? 'Start Practice' : 'Riyaz Shuru Karein'}
+            </button>
+          </div>
         </section>
       </main>
 
@@ -1489,9 +1510,22 @@ export const IndividualRecordedClassScreen: React.FC<IndividualRecordedClassScre
           onClose={() => setActiveSheetMusicModal(null)}
           onStartPractice={(pieceTitle) => handleStartPracticeTimer(pieceTitle)}
           onOpenInteractive={() => {
-            setInteractiveNotice(true);
-            setTimeout(() => setInteractiveNotice(false), 4000);
+            const iscore =
+              getInteractiveScoreById(activeSheetMusicModal.id) ||
+              getInteractiveScoreForClass(course.id, classNumber);
+            setActiveInteractiveScore(iscore);
           }}
+          lang={lang}
+          theme={theme}
+        />
+      )}
+
+      {/* MODAL: REAL-TIME MIDI INTERACTIVE SHEET MUSIC WITH GRAND STAFF */}
+      {activeInteractiveScore && (
+        <InteractiveSheetMusicModal
+          score={activeInteractiveScore}
+          studentId={student.studentId}
+          onClose={() => setActiveInteractiveScore(null)}
           lang={lang}
           theme={theme}
         />
@@ -1504,6 +1538,38 @@ export const IndividualRecordedClassScreen: React.FC<IndividualRecordedClassScre
           courseId={course.id}
           studentId={student.studentId}
           onClose={() => setShowTheoryModal(false)}
+          lang={lang}
+          theme={theme}
+        />
+      )}
+
+      {/* MODAL: REAL PRACTICE TIMER */}
+      {showPracticeTimerModal && (
+        <PracticeTimerModal
+          isOpen={showPracticeTimerModal}
+          studentId={student.studentId}
+          courseId={course.id}
+          classNumber={classNumber}
+          initialContextTitle={practiceContextTitle}
+          onClose={() => {
+            setShowPracticeTimerModal(false);
+            setTotalPracticeSeconds(
+              getStudentPracticeTime(student.studentId, course.id, classNumber)
+            );
+          }}
+          onOpenJournal={() => setShowPracticeJournalModal(true)}
+          lang={lang}
+          theme={theme}
+        />
+      )}
+
+      {/* MODAL: 30-DAY PRACTICE JOURNAL */}
+      {showPracticeJournalModal && (
+        <PracticeJournalModal
+          isOpen={showPracticeJournalModal}
+          studentId={student.studentId}
+          onClose={() => setShowPracticeJournalModal(false)}
+          onStartPractice={() => setShowPracticeTimerModal(true)}
           lang={lang}
           theme={theme}
         />
