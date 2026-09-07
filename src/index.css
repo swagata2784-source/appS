@@ -1,0 +1,17 @@
+@import "tailwindcss";
+
+@layer utilities {
+  .font-display {
+    font-family: 'Cinzel', serif, Georgia;
+    letter-spacing: 0.05em;
+  }
+  .font-body {
+    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  }
+  .safe-top {
+    padding-top: max(env(safe-area-inset-top), 1rem);
+  }
+  .safe-bottom {
+    padding-bottom: max(env(safe-area-inset-bottom), 1.25rem);
+  }
+}
